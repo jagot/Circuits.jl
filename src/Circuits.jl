@@ -124,18 +124,24 @@ function Base.show(io::IO, ::MIME"text/plain", c::Circuit)
     show(io, "text/plain", c.elements)
 end
 
+function Base.show(io::IO, c::Circuit)
+    write(io, "Circuit(")
+    show(io, c.elements)
+    write(io, ")")
+end
+
 function connect!(c::Circuit, a::Element, ap::Pin, b::Element, bp::Pin)
     api = pin(a, ap)
     bpi = pin(b, bp)
-    
+
     ai = offset(c, a) + api
     bi = offset(c, b) + bpi
-    
+
     @info "Connecting pin $(ap) of $(a) to pin $(bp) of $(b)"
 
     c.connections[ai,bi] = true
     c.connections[bi,ai] = true
-    
+
     c
 end
 
