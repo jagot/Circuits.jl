@@ -1,0 +1,10 @@
+name = "Circuits"
+uuid = "afbeee68-0d01-11e9-1fc1-f18836fa970c"
+authors = ["Stefanos Carlström <stefanos.carlstrom@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+TikzPictures = "37f6aa50-8035-52d0-81c2-5a1d08754b2d"
+UnicodeFun = "1cfade01-22cf-5700-b092-accc4b62d6e1"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
