@@ -28,13 +28,19 @@ is_subscriptable(::Any) = false
 
 label(e::Element) = is_subscriptable(e.label) ? to_subscript(e.label) : string(e.label)
 
-pin(e::Element, ::String) = throw(ArgumentError("Symbolic pins not implemented for $(e)"))
+pins(e::Element) = throw(ArgumentError("Cannot list pins for abstract Element $(e)"))
+pins(e::NPort{N}) where N = 1:N
+
+symbolic_pins(e::Element) = throw(ArgumentError("Cannot list symbolic pins for abstract Element $(e)"))
+
+function pin(e::Element, p::String)
+    i = findfirst(isequal(p), symbolic_pins(e))
+    isnothing(i) && throw(ArgumentError("Pin $i not present for element $(e)"))
+    i
+end
 pin(e::Element, p::Integer) = p
 
-ports(e::Element) = throw(ArgumentError("Cannot list ports for abstract Element $(e)"))
-ports(e::NPort{N}) where N = 1:N
-
-num_ports(e::Element) = length(ports(e))
+num_pins(e::Element) = length(pins(e))
 
 symbol(::Element) = "Generic element"
 value(::Element) = nothing
@@ -44,30 +50,37 @@ footprint(e::Element) = e.footprint
 function Base.show(io::IO, e::Element)
     write(io, "$(symbol(e))$(label(e))")
     v = value(e)
-    !isnothing(v) && write(io, " @ $(v)")
+    !isnothing(v) && write(io, "($(v))")
 end
 
 # * Physical two-port
 
-mutable struct PhysicalTwoPort{U,S,L} <: TwoPort
+mutable struct PhysicalTwoPort{U,S,polar,L} <: TwoPort
     value::U
     label::L
     footprint::String
 end
-
-PhysicalTwoPort{U,S}(value::U; label::L = 1, footprint = "") where {U,S,L} =
-    PhysicalTwoPort{U,S,L}(value, label, footprint)
+PhysicalTwoPort{U,S,polar}(value::U; label::L = 1, footprint = "") where {U,S,polar,L} =
+    PhysicalTwoPort{U,S,polar,L}(value, label, footprint)
 
 symbol(::PhysicalTwoPort{U,S,L}) where {U,S,L} = S
 value(tp::PhysicalTwoPort) = tp.value
 
 # ** Misc physical two-ports
 
-const Resistor{L} = PhysicalTwoPort{ElectricalResistance,:R,L}
-const Capacitor{L} = PhysicalTwoPort{Capacitance,:C,L}
-const Inductor{L} = PhysicalTwoPort{Inductance,:L,L}
-const Diode{L} = PhysicalTwoPort{NoUnits,:D,L}
-const Switch{L} = PhysicalTwoPort{NoUnits,:S,L}
+const Resistor{L} = PhysicalTwoPort{ElectricalResistance,:R,false,L}
+const Capacitor{L} = PhysicalTwoPort{Capacitance,:C,false,L}
+const PolarCapacitor{L} = PhysicalTwoPort{Capacitance,:C⁺,true,L}
+const Inductor{L} = PhysicalTwoPort{Inductance,:L,false,L}
+
+const Diode{L} = PhysicalTwoPort{Nothing,:D,true,L}
+Diode(;kwargs...) = Diode(nothing; kwargs...)
+
+const Switch{L} = PhysicalTwoPort{Bool,:S,false,L}
+Switch(;kwargs...) = Switch(false; kwargs...)
+value(s::Switch) = s.value ? "off" : "on"
+
+symbolic_pins(::PhysicalTwoPort{U,S,true,L}) where {U,S,L} = ["+", "-"]
 
 # * Circuit
 
@@ -107,11 +120,11 @@ function Base.show(io::IO, ::MIME"text/plain", c::Circuit)
 end
 
 function connect!(c::Circuit, a::Element, ap::Pin, b::Element, bp::Pin)
-    ap = pin(a, ap)
-    bp = pin(b, bp)
+    api = pin(a, ap)
+    bpi = pin(b, bp)
     
-    ai = offset(c, a) + ap
-    bi = offset(c, b) + bp
+    ai = offset(c, a) + api
+    bi = offset(c, b) + bpi
     
     @info "Connecting pin $(ap) of $(a) to pin $(bp) of $(b)"
 
@@ -123,7 +136,7 @@ end
 
 # * Exports
 
-export Element, Resistor, Capacitor, Inductor,
     Circuit, connect!
+export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch,
 
 end # module
