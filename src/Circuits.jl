@@ -145,9 +145,20 @@ function connect!(c::Circuit, a::Element, ap::Pin, b::Element, bp::Pin)
     c
 end
 
+function unique_labels!(c::Circuit)
+    d = Dict{Type{<:Element},Int}()
+    for e ∈ c.elements
+        e.label isa Integer || throw(ArgumentError("Cannot uniquify symbolic labels"))
+        et = typeof(e)
+        i = get(d, et, 0) + 1
+        e.label = i
+        d[et] = i
+    end
+    c
+end
 # * Exports
 
-    Circuit, connect!
 export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch,
+    Circuit, connect!, unique_labels!
 
 end # module
