@@ -92,24 +92,29 @@ end
 
 Circuit() = Circuit(Vector{Element}(), spzeros(Bool,0,0), Vector{Int}())
 
+findelement(c::Circuit, e::Element) = findfirst(isequal(e), c.elements)
+
 function Base.push!(c::Circuit, e::Element)
+    !isnothing(findelement(c, e)) &&
+        throw(ArgumentError("Element $e already present in circuit $c"))
+
     m = size(c.connections, 1)
-    n = num_ports(e)
+    n = num_pins(e)
     M = m+n
-    
+
     push!(c.elements, e)
     push!(c.offsets, n)
-    
+
     connections = spzeros(Bool,M,M)
     copyto!(view(connections, 1:m, 1:m), c.connections)
     c.connections = connections
-    
+
     c
 end
 
 offset(c::Circuit, i::Integer) = i > 1 ? c.offsets[i-1] : 0
 function offset(c::Circuit, e::Element)
-    i = findfirst(isequal(e), c.elements)
+    i = findelement(c, e)
     isnothing(i) && throw(ArgumentError("$(e) not present in circuit $(c)"))
     offset(c, i)
 end
