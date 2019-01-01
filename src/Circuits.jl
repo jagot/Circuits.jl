@@ -64,8 +64,11 @@ end
 PhysicalTwoPort{U,S,polar}(value::U; label::L = 1, footprint = "") where {U,S,polar,L} =
     PhysicalTwoPort{U,S,polar,L}(value, label, footprint)
 
-symbol(::PhysicalTwoPort{U,S,L}) where {U,S,L} = S
+symbol(::PhysicalTwoPort{U,S,polar,L}) where {U,S,polar,L} = S
 value(tp::PhysicalTwoPort) = tp.value
+
+Base.copy(t::P) where {P<:PhysicalTwoPort} =
+    P(t.value, t.label, t.footprint)
 
 # ** Misc physical two-ports
 
@@ -127,12 +130,16 @@ function Base.push!(c::Circuit, e::Element)
     c
 end
 
+Base.copy(c::Circuit) = Circuit(copy(c.elements), copy(c.connections), copy(c.offsets))
+
 offset(c::Circuit, i::Integer) = i > 1 ? c.offsets[i-1] : 0
 function offset(c::Circuit, e::Element)
     i = findelement(c, e)
     isnothing(i) && throw(ArgumentError("$(e) not present in circuit $(c)"))
     offset(c, i)
 end
+
+pin(c::Circuit, e::Element, p::Pin) = offset(c, e) + pin(e, p)
 
 function Base.show(io::IO, ::MIME"text/plain", c::Circuit)
     write(io, "Circuit with ")
@@ -146,11 +153,8 @@ function Base.show(io::IO, c::Circuit)
 end
 
 function connect!(c::Circuit, a::Element, ap::Pin, b::Element, bp::Pin)
-    api = pin(a, ap)
-    bpi = pin(b, bp)
-
-    ai = offset(c, a) + api
-    bi = offset(c, b) + bpi
+    ai = pin(c, a, ap)
+    bi = pin(c, b, bp)
 
     @debug "Connecting pin $(ap)($(ai)) of $(a) to pin $(bp)($(bi)) of $(b)"
 
@@ -188,12 +192,59 @@ function unique_nodes(c::Circuit)
     nodes
 end
 
+Base.convert(::Type{Circuit}, c::Circuit) = c
+
 # * Subcircuits
 
-# mutable struct SubCircuit{N} <: NPort{N}
-#     c::Circuit
-#     pins
-# end
+struct SubCircuit
+    c::Circuit
+    pins::Vector{Int}
+end
+
+function SubCircuit(c::Circuit, pins::Pair{<:Element,<:Pin}...)
+    pins = map(pins) do (e,p)
+        pin(c, e, p)
+    end
+    SubCircuit(copy(c), [pins...])
+end
+
+function Base.append!(c::Circuit, sc::SubCircuit)
+    m = size(c.connections, 1)
+    els = copy(sc.c.elements)
+    cons = copy(sc.c.connections)
+    m′ = size(cons, 1)
+    for e in els
+        push!(c, copy(e))
+    end
+    for i = 1:m′
+        copyto!(view(c.connections, m .+ (1:m′), m+i), view(cons, :, i))
+        copyto!(view(c.connections, m+i, m .+ (1:m′)), view(cons, i, :))
+    end
+
+    unique_labels!(c)
+end
+
+function attach!(c::Circuit, sc::SubCircuit,
+                 connections::Pair{Int,Int}...)
+    m = size(c.connections, 1)
+    m′ = size(sc.c.connections, 1)
+    append!(c, sc)
+    for (a,b) in connections
+        aa = m+sc.pins[a]
+        c.connections[b,aa] = true
+        c.connections[aa,b] = true
+    end
+    unique_labels!(c)
+    m .+ sc.pins
+end
+
+function attach!(c::Circuit, sc::SubCircuit,
+                 connections::Pair{Int,<:Tuple{<:Element,<:Pin}}...)
+    connections = map(connections) do (a,(be,bp))
+        a => pin(c,be,bp)
+    end
+    attach!(c, sc, connections...)
+end
 
 # * TikZ
 
@@ -218,7 +269,7 @@ function Base.convert(TikzPicture, c::Circuit;
     end |> n -> join(n, ",\n")
 
     graph_args = convert(MIME"text/tikz",
-                         TikZarg["empty nodes",
+                         TikZarg[# "empty nodes",
                                  "grow right sep"=>grow_sep,
                                  "grow left sep"=>grow_sep,
                                  "grow up sep"=>grow_sep,
@@ -243,6 +294,7 @@ TikzPictures.save(f::S, c::Circuit; kwargs...) where {S<:TikzPictures.SaveType} 
 # * Exports
 
 export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch,
-    Circuit, connect!, unique_labels!
+    Circuit, connect!, unique_labels!,
+    SubCircuit, attach!
 
 end # module
