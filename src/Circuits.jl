@@ -84,9 +84,14 @@ value(s::Switch) = s.value ? "on" : "off"
 symbolic_pins(::PhysicalTwoPort{U,S,true,L}) where {U,S,L} = ["+", "-"]
 
 # *** Two-port TikZ symbols
-tikz_symbol(r::Resistor{L}) where {L} = "resistor"
-tikz_symbol(r::Capacitor{L}) where {L} = "capacitor"
-tikz_symbol(c::PolarCapacitor{L}) where L = "capacitor"
+tikz_label(e::PhysicalTwoPort{U,S,polar,L}) where {U,S,polar,L} = "\$$(S)_{$(e.label)}\$"
+tikz_info(e::PhysicalTwoPort{U,S,polar,L}) where {U,S,polar,L} = "info sloped={$(tikz_label(e))=$(e.value)}"
+tikz_info(e::PhysicalTwoPort{Nothing,S,polar,L}) where {S,polar,L} = "info sloped={$(tikz_label(e))}"
+tikz_info(s::Switch{L}) where L = "info sloped={$(tikz_label(s))}"
+
+tikz_symbol(r::Resistor{L}) where L = "resistor"
+tikz_symbol(r::Capacitor{L}) where L = "capacitor"
+tikz_symbol(c::PolarCapacitor{L}) where L = "capacitor" # No proper symbol in TikZ
 tikz_symbol(i::Inductor{L}) where L = "inductor"
 tikz_symbol(d::Diode{L}) where L = "diode"
 tikz_symbol(s::Switch{L}) where L = s.value ? "break contact" : "make contact"
@@ -182,9 +187,20 @@ function unique_nodes(c::Circuit)
 
     nodes
 end
+
+# * Subcircuits
+
+# mutable struct SubCircuit{N} <: NPort{N}
+#     c::Circuit
+#     pins
+# end
+
 # * TikZ
 
-function Base.convert(TikzPicture, c::Circuit; kwargs...)
+function Base.convert(TikzPicture, c::Circuit;
+                      print_info::Bool=true,
+                      grow_sep=2u"cm",
+                      kwargs...)
     all(map(e -> e isa Circuits.TwoPort, c.elements)) ||
         throw(ArgumentError("Don't know how to generate TikZ diagrams consisting of anything but two-ports"))
 
@@ -197,10 +213,17 @@ function Base.convert(TikzPicture, c::Circuit; kwargs...)
         a == b && @info("Two-port nodes identical")
         e = c.elements[cld(i,2)]
         style = connection_count[i+1] > 2 ? "[mark]" : ""
-        "n$(a) --[$(tikz_symbol(e))] n$(b)$(style)"
+        el_sym = tikz_symbol(e)*"={"*(print_info ? tikz_info(e) : "")*"}"
+        "n$(a) --[$(el_sym)] n$(b)$(style)"
     end |> n -> join(n, ",\n")
 
-    graph = "\\graph[empty nodes]{$(graph)};"
+    graph_args = convert(MIME"text/tikz",
+                         TikZarg["empty nodes",
+                                 "grow right sep"=>grow_sep,
+                                 "grow left sep"=>grow_sep,
+                                 "grow up sep"=>grow_sep,
+                                 "grow down sep"=>grow_sep])
+    graph = "\\graph$(graph_args){$(graph)};"
 
     options = join(map(tikz_arg, TikZarg["circuit ee IEC",
                                          "every info/.style"=>"{font=\\footnotesize}",
