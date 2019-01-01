@@ -6,7 +6,8 @@ import Unitful: ElectricalResistance, Capacitance, Inductance, Voltage, Current
 using SparseArrays
 
 using UnicodeFun
-using TikzPictures
+
+include("tikz.jl")
 
 if VERSION < v"1.1-DEV"
     isnothing(::Nothing) = true
@@ -82,6 +83,14 @@ value(s::Switch) = s.value ? "on" : "off"
 
 symbolic_pins(::PhysicalTwoPort{U,S,true,L}) where {U,S,L} = ["+", "-"]
 
+# *** Two-port TikZ symbols
+tikz_symbol(r::Resistor{L}) where {L} = "resistor"
+tikz_symbol(r::Capacitor{L}) where {L} = "capacitor"
+tikz_symbol(c::PolarCapacitor{L}) where L = "capacitor"
+tikz_symbol(i::Inductor{L}) where L = "inductor"
+tikz_symbol(d::Diode{L}) where L = "diode"
+tikz_symbol(s::Switch{L}) where L = s.value ? "break contact" : "make contact"
+
 # * Circuit
 
 mutable struct Circuit
@@ -138,7 +147,7 @@ function connect!(c::Circuit, a::Element, ap::Pin, b::Element, bp::Pin)
     ai = offset(c, a) + api
     bi = offset(c, b) + bpi
 
-    @info "Connecting pin $(ap) of $(a) to pin $(bp) of $(b)"
+    @debug "Connecting pin $(ap)($(ai)) of $(a) to pin $(bp)($(bi)) of $(b)"
 
     c.connections[ai,bi] = true
     c.connections[bi,ai] = true
@@ -173,6 +182,41 @@ function unique_nodes(c::Circuit)
 
     nodes
 end
+# * TikZ
+
+function Base.convert(TikzPicture, c::Circuit; kwargs...)
+    all(map(e -> e isa Circuits.TwoPort, c.elements)) ||
+        throw(ArgumentError("Don't know how to generate TikZ diagrams consisting of anything but two-ports"))
+
+    nodes = unique_nodes(c)
+    connection_count = map(nodes) do n
+        length(findall(isequal(n), nodes))
+    end
+    graph = map(1:2:length(nodes)) do i
+        a,b = nodes[i],nodes[i+1]
+        a == b && @info("Two-port nodes identical")
+        e = c.elements[cld(i,2)]
+        style = connection_count[i+1] > 2 ? "[mark]" : ""
+        "n$(a) --[$(tikz_symbol(e))] n$(b)$(style)"
+    end |> n -> join(n, ",\n")
+
+    graph = "\\graph[empty nodes]{$(graph)};"
+
+    options = join(map(tikz_arg, TikZarg["circuit ee IEC",
+                                         "every info/.style"=>"{font=\\footnotesize}",
+                                         "small circuit symbols",
+                                         "layered layout",
+                                         "rotate"=>90,
+                                         # "xscale"=>-1,
+                                         "mark/.style"=>"{fill,circle}",
+                                         "mark/.default"=>"",
+                                         "every node/.style"=>"inner sep=0pt,minimum size=0pt"]), ",\n")
+    TikzPicture(graph; options=options, kwargs...)
+end
+
+TikzPictures.save(f::S, c::Circuit; kwargs...) where {S<:TikzPictures.SaveType} =
+    save(f, convert(TikzPicture, c; preamble=preamble, kwargs...))
+
 # * Exports
 
 export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch,
