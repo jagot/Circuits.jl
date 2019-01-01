@@ -78,7 +78,7 @@ Diode(;kwargs...) = Diode(nothing; kwargs...)
 
 const Switch{L} = PhysicalTwoPort{Bool,:S,false,L}
 Switch(;kwargs...) = Switch(false; kwargs...)
-value(s::Switch) = s.value ? "off" : "on"
+value(s::Switch) = s.value ? "on" : "off"
 
 symbolic_pins(::PhysicalTwoPort{U,S,true,L}) where {U,S,L} = ["+", "-"]
 
