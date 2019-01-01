@@ -1,0 +1,63 @@
+#+TITLE: Circuits.jl
+#+AUTHOR: Stefanos Carlström
+#+EMAIL: stefanos.carlstrom@gmail.com
+
+#+PROPERTY: header-args:julia :session *julia-README*
+* Usage
+  #+BEGIN_SRC julia :exports none
+    using Pkg
+    Pkg.activate(".")
+  #+END_SRC
+
+  #+BEGIN_SRC julia :exports code
+    using Circuits
+    using TikzPictures
+    using Unitful
+  #+END_SRC
+
+  #+RESULTS:
+  : nothing
+
+  #+BEGIN_SRC julia
+    R1 = Resistor(1u"Ω")
+    R2 = Resistor(1u"Ω")
+    C = PolarCapacitor(1u"F")
+    S = Switch()
+    D = Diode()
+  #+END_SRC
+
+  #+RESULTS:
+  : D₁
+  
+  #+BEGIN_SRC julia :exports both :results verbatim
+    c = Circuit()
+    push!(c, R1)
+    push!(c, R2)
+    push!(c, C)
+    push!(c, S)
+    push!(c, D)
+    connect!(c, R1, 1, C, "+")
+    connect!(c, C, "+", S, 2)
+    connect!(c, S, 1, R2, 2)
+    connect!(c, R2, 1, R1, 2)
+    connect!(c, R2, 2, D, "+")
+    connect!(c, C, "-", D, "-")
+    unique_labels!(c)
+  #+END_SRC
+
+  #+RESULTS:
+  : Circuit with 5-element Array{Element,1}:
+  :  R₁(1 Ω) 
+  :  R₂(1 Ω) 
+  :  C⁺₁(1 F)
+  :  S₁(off) 
+  :  D₁      
+
+  #+BEGIN_SRC julia :exports code
+    save(SVG("test_circuit"), c)
+  #+END_SRC
+
+  #+RESULTS:
+  : nothing
+
+  [[file:test_circuit.svg]]
