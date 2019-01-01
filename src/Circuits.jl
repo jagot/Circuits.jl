@@ -101,9 +101,10 @@ function Base.push!(c::Circuit, e::Element)
     m = size(c.connections, 1)
     n = num_pins(e)
     M = m+n
+    o = length(c.offsets) > 0 ? n + c.offsets[end] : n
 
     push!(c.elements, e)
-    push!(c.offsets, n)
+    push!(c.offsets, o)
 
     connections = spzeros(Bool,M,M)
     copyto!(view(connections, 1:m, 1:m), c.connections)
