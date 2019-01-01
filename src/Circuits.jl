@@ -157,6 +157,22 @@ function unique_labels!(c::Circuit)
     end
     c
 end
+
+function unique_nodes(c::Circuit)
+    connected_nodes = reduce(|, c.connections, dims=1) |> vec |> findall
+    @debug "Number of connections: $(length(connected_nodes))"
+
+    nodes = collect(1:size(c.connections,1))
+
+    for m in connected_nodes
+        for n in findall(c.connections[:,m])
+            n ≤ m && continue
+            nodes[n] = nodes[m]
+        end
+    end
+
+    nodes
+end
 # * Exports
 
 export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch,
