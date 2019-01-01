@@ -46,8 +46,6 @@ num_pins(e::Element) = length(pins(e))
 symbol(::Element) = "Generic element"
 value(::Element) = nothing
 
-footprint(e::Element) = e.footprint
-
 function Base.show(io::IO, e::Element)
     write(io, "$(symbol(e))$(label(e))")
     v = value(e)
@@ -59,16 +57,16 @@ end
 mutable struct PhysicalTwoPort{U,S,polar,L} <: TwoPort
     value::U
     label::L
-    footprint::String
+    meta::Dict{Symbol,Any}
 end
-PhysicalTwoPort{U,S,polar}(value::U; label::L = 1, footprint = "") where {U,S,polar,L} =
-    PhysicalTwoPort{U,S,polar,L}(value, label, footprint)
+PhysicalTwoPort{U,S,polar}(value::U; label::L = 1, meta...) where {U,S,polar,L} =
+    PhysicalTwoPort{U,S,polar,L}(value, label, meta)
 
 symbol(::PhysicalTwoPort{U,S,polar,L}) where {U,S,polar,L} = S
 value(tp::PhysicalTwoPort) = tp.value
 
 Base.copy(t::P) where {P<:PhysicalTwoPort} =
-    P(t.value, t.label, t.footprint)
+    P(t.value, t.label, t.meta)
 
 # ** Misc physical two-ports
 
