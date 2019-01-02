@@ -138,6 +138,7 @@ function offset(c::Circuit, e::Element)
 end
 
 pin(c::Circuit, e::Element, p::Pin) = offset(c, e) + pin(e, p)
+pins(c::Circuit, e::Element) = offset(c, e) .+ pins(e)
 
 function Base.show(io::IO, ::MIME"text/plain", c::Circuit)
     write(io, "Circuit with ")
@@ -188,6 +189,13 @@ function unique_nodes(c::Circuit)
     end
 
     nodes
+end
+
+function node_names(c::Circuit)
+    map(unique_nodes(c)) do n
+        # TODO If node is connected to ground, return :GND instead
+        "Net-$(n)"
+    end
 end
 
 Base.convert(::Type{Circuit}, c::Circuit) = c
@@ -291,8 +299,8 @@ TikzPictures.save(f::S, c::Circuit; kwargs...) where {S<:TikzPictures.SaveType} 
 
 # * Exports
 
-export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch,
-    Circuit, connect!, unique_labels!,
+export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch, pin, pins,
+    Circuit, connect!, unique_labels!, unique_nodes, node_names,
     SubCircuit, attach!
 
 end # module
