@@ -66,7 +66,7 @@ symbol(::PhysicalTwoPort{U,S,polar,L}) where {U,S,polar,L} = S
 value(tp::PhysicalTwoPort) = tp.value
 
 Base.copy(t::P) where {P<:PhysicalTwoPort} =
-    P(t.value, t.label, t.meta)
+    P(t.value, t.label, copy(t.meta))
 
 # ** Misc physical two-ports
 
@@ -128,7 +128,7 @@ function Base.push!(c::Circuit, e::Element)
     c
 end
 
-Base.copy(c::Circuit) = Circuit(copy(c.elements), copy(c.connections), copy(c.offsets))
+Base.copy(c::Circuit) = Circuit(copy.(c.elements), copy.(c.connections), copy.(c.offsets))
 
 offset(c::Circuit, i::Integer) = i > 1 ? c.offsets[i-1] : 0
 function offset(c::Circuit, e::Element)
@@ -214,6 +214,8 @@ function SubCircuit(c::Circuit, pins::Pair{<:Element,<:Pin}...)
     SubCircuit(copy(c), [pins...])
 end
 
+Base.copy(sc::SubCircuit) = SubCircuit(copy(sc.c), copy(sc.pins))
+
 function Base.append!(c::Circuit, sc::SubCircuit)
     m = size(c.connections, 1)
     els = copy(sc.c.elements)
@@ -228,20 +230,19 @@ function Base.append!(c::Circuit, sc::SubCircuit)
     end
 
     unique_labels!(c)
+    m .+ sc.pins
 end
 
 function attach!(c::Circuit, sc::SubCircuit,
                  connections::Pair{Int,Int}...)
     m = size(c.connections, 1)
-    m′ = size(sc.c.connections, 1)
-    append!(c, sc)
+    sc_pins = append!(c, sc)
     for (a,b) in connections
         aa = m+sc.pins[a]
         c.connections[b,aa] = true
         c.connections[aa,b] = true
     end
-    unique_labels!(c)
-    m .+ sc.pins
+    sc_pins
 end
 
 function attach!(c::Circuit, sc::SubCircuit,
