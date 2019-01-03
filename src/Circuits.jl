@@ -154,16 +154,17 @@ function Base.show(io::IO, c::Circuit)
     write(io, ")")
 end
 
+function connect!(c::Circuit, a::Int, b::Int)
+    c.connections[a,b] = true
+    c.connections[b,a] = true
+    c
+end
+
 function connect!(c::Circuit, a::Element, ap::Pin, b::Element, bp::Pin)
     ai = pin(c, a, ap)
     bi = pin(c, b, bp)
-
     @debug "Connecting pin $(ap)($(ai)) of $(a) to pin $(bp)($(bi)) of $(b)"
-
-    c.connections[ai,bi] = true
-    c.connections[bi,ai] = true
-
-    c
+    connect!(c, ai, bi)
 end
 
 function unique_labels!(c::Circuit)
