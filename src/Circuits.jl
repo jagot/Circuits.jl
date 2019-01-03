@@ -301,6 +301,8 @@ end
 TikzPictures.save(f::S, c::Circuit; kwargs...) where {S<:TikzPictures.SaveType} =
     save(f, convert(TikzPicture, c; preamble=preamble, kwargs...))
 
+include("bom.jl")
+
 # * Exports
 
 export Element, Resistor, Capacitor, PolarCapacitor, Inductor, Diode, Switch, pin, pins,
