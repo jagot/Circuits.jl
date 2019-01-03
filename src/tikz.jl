@@ -25,15 +25,29 @@ function tikz_environment(fun::Function, environment::String, args::TikZarg...)
     "\\begin{$(environment)}$(args)\n"*indent(fun())*"\n\\end{$(environment)}"
 end
 
-mutable struct TikZnode
+mutable struct TikZnode{T}
     label::String
+    id::String
     args::Vector{TikZarg}
+    x::T
+    y::T
 end
-TikZnode(label::String, args::TikZarg...) = TikZnode(label, TikZarg[args...])
+TikZnode(label::String, args::TikZarg...; id="", x::T=0, y::T=0) where T =
+    TikZnode{T}(label, id, TikZarg[args...], x, y)
 
-function Base.convert(::Type{MIME"text/tikz"}, node::TikZnode)
+function Base.convert(::Type{MIME"text/tikz"}, node::TikZnode{T}) where T
     args = convert(MIME"text/tikz", node.args)
-    "\\node$(args){$(node.label)};"
+    id = if !isempty(node.id)
+        " ($(node.id)) "
+    else
+        ""
+    end
+    pos = if node.x != zero(T) || node.y != zero(T)
+        " at ($(node.x),$(node.y)) "
+    else
+        ""
+    end
+    "\\node$(args)$(id)$(pos){$(node.label)};"
 end
 
 tikz_scope(fun::Function, args::TikZarg...) = tikz_environment(fun, "scope", args...)
