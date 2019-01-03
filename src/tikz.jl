@@ -1,6 +1,5 @@
+module TikZ
 using TikzPictures
-
-const preamble = read(joinpath(dirname(@__FILE__), "preamble.tex"), String)
 
 function indent(s::String)
     map(split(s, "\n")) do line
@@ -38,3 +37,6 @@ function Base.convert(::Type{MIME"text/tikz"}, node::TikZnode)
 end
 
 tikz_scope(fun::Function, args::TikZarg...) = tikz_environment(fun, "scope", args...)
+
+export indent, TikZarg, tikz_arg, tikz_environment, TikZnode, tikz_scope
+end

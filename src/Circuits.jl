@@ -8,6 +8,9 @@ using SparseArrays
 using UnicodeFun
 
 include("tikz.jl")
+using TikzPictures
+using .TikZ
+const preamble = read(joinpath(dirname(@__FILE__), "preamble.tex"), String)
 
 if VERSION < v"1.1-DEV"
     isnothing(::Nothing) = true
